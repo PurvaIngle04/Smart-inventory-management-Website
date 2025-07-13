@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walmart Inventory Forecast & Insights</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <!-- Chart.js Data Labels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #a0a0a0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+
+        /* Tooltip styles */
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 10px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%; /* Position above the element */
+            left: 50%;
+            transform: translateX(-50%);
+            transition: opacity 0.3s;
+            white-space: nowrap;
+            font-size: 0.8rem;
+        }
+
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%; /* At the bottom of the tooltip */
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="p-4 text-gray-800">
+    <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8 lg:p-10">
+        <!-- Header -->
+        <header class="mb-8 border-b pb-4 border-gray-200">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9 mr-3 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L10 10.586 8.707 9.293z" clip-rule="evenodd" />
+                </svg>
+                Walmart Inventory Forecast & Insights
+            </h1>
+            <p class="text-gray-500 mt-2 text-sm md:text-base">Empowering supply chain managers with predictive analytics for optimal inventory management.</p>
+        </header>
+
+        <!-- 1. Hero / Summary Panel -->
+        <section class="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-blue-50 p-6 rounded-lg shadow-md border border-blue-200">
+                <h3 class="text-lg font-semibold text-blue-700 mb-2">Forecast Accuracy (MAPE)
+                    <span class="has-tooltip relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-40-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="tooltip">Mean Absolute Percentage Error: Measures accuracy of forecast. Lower is better.</span>
+                    </span>
+                </h3>
+                <p class="text-4xl font-bold text-blue-900" id="kpi-mape">88.5%</p>
+            </div>
+            <div class="bg-green-50 p-6 rounded-lg shadow-md border border-green-200">
+                <h3 class="text-lg font-semibold text-green-700 mb-2">Total Forecasted Demand
+                    <span class="has-tooltip relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="tooltip">Total units expected to be sold/needed in the next forecast period.</span>
+                    </span>
+                </h3>
+                <p class="text-4xl font-bold text-green-900" id="kpi-total-demand">1.2M Units</p>
+            </div>
+            <div class="bg-red-50 p-6 rounded-lg shadow-md border border-red-200">
+                <h3 class="text-lg font-semibold text-red-700 mb-2">Stock-Out Risk %
+                    <span class="has-tooltip relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="tooltip">Probability of running out of stock for a given SKU.</span>
+                    </h3>
+                <p class="text-4xl font-bold text-red-900" id="kpi-stock-out">3.1%</p>
+            </div>
+            <div class="bg-purple-50 p-6 rounded-lg shadow-md border border-purple-200">
+                <h3 class="text-lg font-semibold text-purple-700 mb-2">Projected Inventory Value
+                    <span class="has-tooltip relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="tooltip">Estimated monetary value of inventory based on current stock and future demand.</span>
+                    </span>
+                </h3>
+                <p class="text-4xl font-bold text-purple-900" id="kpi-inventory-value">$125M</p>
+            </div>
+            <div class="col-span-full flex justify-between items-center text-sm text-gray-500 mt-4">
+                <p>Last Data Refresh: <span id="last-refresh">2025-07-03 09:30 AM EST</span></p>
+                <p>Overall Forecast Confidence: <span id="forecast-confidence" class="font-semibold text-blue-600">High (92%)</span></p>
+            </div>
+        </section>
+
+        <!-- Interactive Drill-Down Controls -->
+        <section class="mb-8 bg-gray-50 p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">Interactive Filters</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label for="filter-region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                    <select id="filter-region" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="all">All Regions</option>
+                        <option value="north-east">North East</option>
+                        <option value="south-east">South East</option>
+                        <option value="mid-west">Mid West</option>
+                        <option value="west">West</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-store" class="block text-sm font-medium text-gray-700 mb-1">Store</label>
+                    <select id="filter-store" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="all">All Stores</option>
+                        <option value="store-101">Store #101 (NYC)</option>
+                        <option value="store-205">Store #205 (LA)</option>
+                        <option value="store-310">Store #310 (Chicago)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-fc" class="block text-sm font-medium text-gray-700 mb-1">Fulfillment Center</label>
+                    <select id="filter-fc" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="all">All FCs</option>
+                        <option value="fc-east">FC East</option>
+                        <option value="fc-west">FC West</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-sku" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                    <select id="filter-sku" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="all">All SKUs</option>
+                        <option value="sku-12345">SKU-12345 (Organic Apples)</option>
+                        <option value="sku-67890">SKU-67890 (HDTV 55-inch)</option>
+                        <option value="sku-11223">SKU-11223 (Paper Towels)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="applyFilters()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                    Apply Filters
+                </button>
+            </div>
+            <div class="mt-4 text-sm text-gray-600">
+                <p>Filtered Forecast Accuracy: <span id="filtered-mape" class="font-semibold text-blue-600">89.2%</span></p>
+                <p>Filtered Stock-Out Risk: <span id="filtered-stock-out" class="font-semibold text-red-600">2.8%</span></p>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Charts -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- 2. Historical Trends Overview -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Historical Trends Overview</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-600 mb-2">Units Shipped & Sales</h3>
+                            <div class="h-64">
+                                <canvas id="historicalTrendsChart"></canvas>
+                                <!-- TODO: Replace with API data for units shipped and sales over time -->
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-600 mb-2">Returns & Stock on Hand</h3>
+                            <div class="h-64">
+                                <canvas id="returnsStockChart"></canvas>
+                                <!-- TODO: Replace with API data for returns and stock on hand -->
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-4">
+                        <span class="font-semibold">Insights:</span> Observe seasonal patterns and identify significant deviations like holiday spikes or unexpected return surges.
+                    </p>
+                </section>
+
+                <!-- 3. Demand Forecast Section -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Demand Forecast</h2>
+                    <h3 class="text-lg font-semibold text-gray-600 mb-2">Actual vs. Forecast (30/60/90-Day)
+                        <span class="has-tooltip relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="tooltip">Forecasts for 30, 60, and 90 days with confidence bands.</span>
+                        </span>
+                    </h3>
+                    <div class="h-80">
+                        <canvas id="demandForecastChart"></canvas>
+                        <!-- TODO: Replace with API data for actual and forecasted demand with confidence bands -->
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <p class="mb-2">
+                            <span class="font-semibold">Models Used:</span> ARIMA (AutoRegressive Integrated Moving Average) and Prophet for time-series forecasting. For complex patterns, Gradient Boosting Machines (GBM) and Neural Networks (e.g., LSTMs) are employed.
+                            <span class="has-tooltip relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip">ARIMA: Statistical model for time series data. ML: Machine Learning models.</span>
+                            </span>
+                        </p>
+                        <p class="mb-2">
+                            <span class="font-semibold">Evaluation Metrics:</span> MAPE (Mean Absolute Percentage Error) and RMSE (Root Mean Squared Error) are primary metrics.
+                            <span class="has-tooltip relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip">RMSE: Measures the magnitude of error. Lower is better.</span>
+                            </span>
+                        </p>
+                        <p>
+                            <span class="font-semibold">Selection Logic:</span> Models are selected based on historical performance, data characteristics (seasonality, trend, noise), and business context. Ensemble methods combine multiple models for robust predictions.
+                        </p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Recommendations & Anomaly Detection -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- 4. Replenishment & Stock Recommendations -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Replenishment & Stock Recommendations</h2>
+                    <div id="recommendations-list" class="space-y-4">
+                        <!-- Sample Recommendation 1: Low Coverage Alert -->
+                        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-sm" role="alert">
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <p class="font-bold">Low Coverage Alert: SKU-12345 (Organic Apples)</p>
+                            </div>
+                            <p class="text-sm mt-2">Current stock: 50 units. Forecasted demand (30d): 300 units. Reorder point: 250 units.
+                                <span class="has-tooltip relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="tooltip">Reorder Point: Inventory level that triggers a new order.</span>
+                                </span>
+                                <br>
+                                <span class="font-semibold">Suggested Order Quantity: 200 units.</span>
+                            </p>
+                            <!-- TODO: Dynamically generate recommendations based on forecast and stock levels -->
+                        </div>
+
+                        <!-- Sample Recommendation 2: Overstock Risk -->
+                        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-sm" role="alert">
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <p class="font-bold">Overstock Risk: SKU-67890 (HDTV 55-inch)</p>
+                            </div>
+                            <p class="text-sm mt-2">Current stock: 120 units. Forecasted demand (30d): 40 units.
+                                <br>
+                                <span class="font-semibold">Recommendation: Consider promotional activities or transfers to other stores.</span>
+                            </p>
+                        </div>
+
+                         <!-- Sample Recommendation 3: Healthy Stock -->
+                         <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-md shadow-sm" role="alert">
+                            <div class="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="font-bold">Healthy Stock: SKU-11223 (Paper Towels)</p>
+                            </div>
+                            <p class="text-sm mt-2">Current stock: 500 units. Forecasted demand (30d): 450 units.
+                                <br>
+                                <span class="font-semibold">Recommendation: Maintain current inventory levels.</span>
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Anomaly Detection & Adjustment Explanation -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Anomaly Detection & Adjustment</h2>
+                    <h3 class="text-lg font-semibold text-gray-600 mb-2">How Anomalies are Handled
+                        <span class="has-tooltip relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="tooltip">Explanation of how the forecasting model accounts for unusual events.</span>
+                        </span>
+                    </h3>
+                    <p class="text-gray-700 mb-4 text-sm">
+                        Our forecasting models are designed with advanced anomaly detection algorithms (e.g., Isolation Forest, Seasonal-Trend decomposition using Loess - STL). These algorithms identify unusual data points or patterns that deviate significantly from historical norms.
+                    </p>
+                    <p class="text-gray-700 mb-4 text-sm">
+                        Once detected, these anomalies (like a sudden spike due to a flash sale, or a dip due to a severe weather event) are either:
+                    </p>
+                    <ul class="list-disc list-inside text-gray-700 text-sm mb-4">
+                        <li><span class="font-semibold">Filtered Out:</span> The model learns to treat these as one-time events, preventing them from skewing future forecasts.</li>
+                        <li><span class="font-semibold">Accounted For:</span> If the anomaly is a recurring event (e.g., Black Friday sales), the model incorporates it as a known seasonal factor.</li>
+                    </ul>
+                    <p class="text-gray-700 text-sm">
+                        This ensures our forecasts remain robust and are not overly influenced by transient events, providing a clearer picture of underlying demand. Anomalies are visualized on charts with annotations for transparency.
+                    </p>
+                    <div class="h-48 bg-gray-100 rounded-md flex items-center justify-center text-gray-400 mt-4 border border-dashed border-gray-300">
+                        <p>Anomaly Visualization Placeholder (e.g., Chart with annotations)</p>
+                        <!-- TODO: Integrate actual chart with anomaly annotations -->
+                    </div>
+                </section>
+
+                <!-- New: Quick Forecast Section (CSV Input) -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                    <h2 class="text-2xl font-bold text-gray-700 mb-4">Quick Forecast (CSV Input)</h2>
+                    <p class="text-gray-700 mb-4 text-sm">Upload a CSV file with historical sales data (e.g., "Month,Sales") for the last three months to predict the next month's sales.</p>
+                    <div class="mb-4">
+                        <label for="csv-input" class="block text-sm font-medium text-gray-700 mb-1">Upload Sales Data CSV</label>
+                        <input type="file" id="csv-input" accept=".csv" class="mt-1 block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100">
+                    </div>
+                    <button onclick="processCsvForPrediction()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                        Predict Next Month's Sales
+                    </button>
+                    <div class="mt-4 text-lg font-bold text-gray-800">
+                        Predicted Next Month's Sales: <span id="predicted-sales" class="text-green-600">--</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">
+                        <span class="font-semibold">Note:</span> This client-side demo uses a simple 3-month moving average. For production, integrate with a robust forecasting API.
+                    </p>
+                </section>
+            </div>
+        </div>
+
+        <!-- 7. SKU-Level Data Table -->
+        <section class="mt-8 bg-white p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">SKU-Level Data Table</h2>
+            <div class="mb-4 flex flex-col sm:flex-row justify-between items-center">
+                <input type="text" id="sku-search" onkeyup="filterTable()" placeholder="Search by SKU or Product Name..." class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 mb-3 sm:mb-0">
+                <div class="flex space-x-2">
+                    <button onclick="sortTable(0)" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md shadow-sm hover:bg-gray-300 transition duration-150 ease-in-out">Sort by SKU</button>
+                    <button onclick="sortTable(2)" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md shadow-sm hover:bg-gray-300 transition duration-150 ease-in-out">Sort by Stock</button>
+                    <button onclick="sortTable(8)" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md shadow-sm hover:bg-gray-300 transition duration-150 ease-in-out">Sort by Risk</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                <table id="sku-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Forecast (30d)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Forecast (60d)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Forecast (90d)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coverage Days
+                                <span class="has-tooltip relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="tooltip">Number of days current stock can cover forecasted demand.</span>
+                                </span>
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reorder Qty</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence Interval
+                                <span class="has-tooltip relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline-block text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="tooltip">Range within which the true demand is expected to fall (e.g., 95%).</span>
+                                </span>
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sku-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Sample Data -->
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SKU-12345</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Organic Apples (Red)</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">50</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">300</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">620</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">950</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">5 days</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">200</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">+/- 15 units</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">High</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SKU-67890</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">HDTV 55-inch Smart</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">120</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">40</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">85</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">130</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600 font-semibold">90 days</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">0</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">+/- 5 units</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Medium</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SKU-11223</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Paper Towels (6-pack)</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">500</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">450</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">900</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1300</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">35 days</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">100</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">+/- 20 units</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Low</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SKU-98765</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Organic Bananas</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">80</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">200</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">410</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">600</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">12 days</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">150</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">+/- 10 units</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">High</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SKU-54321</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Laptop (Gaming)</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">30</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">20</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">45</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">70</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">45 days</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-semibold">0</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">+/- 3 units</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Low</span>
+                            </td>
+                        </tr>
+                        <!-- TODO: Populate this table dynamically from API data -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Global Chart.js instances
+        let historicalTrendsChartInstance;
+        let returnsStockChartInstance;
+        let demandForecastChartInstance;
+
+        // Data for charts (placeholder - replace with actual API data)
+        const chartData = {
+            historical: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                unitsShipped: [1200, 1300, 1100, 1400, 1500, 1600, 1450, 1550, 1700, 1800, 2500, 2800], // Anomaly in Nov/Dec (holiday spike)
+                sales: [1100, 1250, 1050, 1350, 1450, 1500, 1400, 1500, 1650, 1750, 2400, 2700],
+                returns: [50, 60, 55, 70, 65, 75, 70, 80, 85, 90, 120, 150], // Anomaly in Nov/Dec (post-holiday returns)
+                stockOnHand: [5000, 4900, 4800, 4700, 4600, 4500, 4650, 4550, 4400, 4300, 3500, 2800]
+            },
+            forecast: {
+                labels: ['Day 1', 'Day 5', 'Day 10', 'Day 15', 'Day 20', 'Day 25', 'Day 30', 'Day 35', 'Day 40', 'Day 45', 'Day 50', 'Day 55', 'Day 60', 'Day 65', 'Day 70', 'Day 75', 'Day 80', 'Day 85', 'Day 90'],
+                actual: [100, 105, 110, 108, 115, 120, 118, 125, 130, 128, 135, 140, 138, 145, 150, 148, 155, 160, 158], // Recent past actuals
+                forecast: [110, 112, 115, 118, 120, 123, 125, 128, 130, 133, 135, 138, 140, 143, 145, 148, 150, 153, 155],
+                confidenceUpper: [115, 118, 120, 123, 125, 128, 130, 133, 135, 138, 140, 143, 145, 148, 150, 153, 155, 158, 160],
+                confidenceLower: [105, 106, 110, 113, 115, 118, 120, 123, 125, 128, 130, 133, 135, 138, 140, 143, 145, 148, 150]
+            }
+        };
+
+        // Function to initialize or update charts
+        function initializeCharts() {
+            // Destroy existing chart instances if they exist
+            if (historicalTrendsChartInstance) historicalTrendsChartInstance.destroy();
+            if (returnsStockChartInstance) returnsStockChartInstance.destroy();
+            if (demandForecastChartInstance) demandForecastChartInstance.destroy();
+
+            // Historical Trends Chart
+            const historicalTrendsCtx = document.getElementById('historicalTrendsChart').getContext('2d');
+            historicalTrendsChartInstance = new Chart(historicalTrendsCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.historical.labels,
+                    datasets: [
+                        {
+                            label: 'Units Shipped',
+                            data: chartData.historical.unitsShipped,
+                            borderColor: 'rgb(59, 130, 246)', // blue-500
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Sales',
+                            data: chartData.historical.sales,
+                            borderColor: 'rgb(16, 185, 129)', // green-500
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false,
+                            text: 'Units Shipped & Sales'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        legend: {
+                            position: 'bottom',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Units'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Returns & Stock on Hand Chart
+            const returnsStockCtx = document.getElementById('returnsStockChart').getContext('2d');
+            returnsStockChartInstance = new Chart(returnsStockCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.historical.labels,
+                    datasets: [
+                        {
+                            label: 'Returns',
+                            data: chartData.historical.returns,
+                            borderColor: 'rgb(239, 68, 68)', // red-500
+                            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Stock on Hand',
+                            data: chartData.historical.stockOnHand,
+                            borderColor: 'rgb(124, 58, 237)', // purple-500
+                            backgroundColor: 'rgba(124, 58, 237, 0.2)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false,
+                            text: 'Returns & Stock on Hand'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        legend: {
+                            position: 'bottom',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Units'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Demand Forecast Chart
+            const demandForecastCtx = document.getElementById('demandForecastChart').getContext('2d');
+            demandForecastChartInstance = new Chart(demandForecastCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.forecast.labels,
+                    datasets: [
+                        {
+                            label: 'Actual Demand',
+                            data: chartData.forecast.actual,
+                            borderColor: 'rgb(75, 85, 99)', // gray-700
+                            backgroundColor: 'rgba(75, 85, 99, 0.2)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Forecasted Demand',
+                            data: chartData.forecast.forecast,
+                            borderColor: 'rgb(37, 99, 235)', // blue-600
+                            backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                            tension: 0.3,
+                            fill: false,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        },
+                        {
+                            label: 'Confidence Band (Upper)',
+                            data: chartData.forecast.confidenceUpper,
+                            borderColor: 'rgba(37, 99, 235, 0.3)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: '-1', // Fill to the previous dataset (Forecasted Demand)
+                            pointRadius: 0,
+                            pointHoverRadius: 0
+                        },
+                        {
+                            label: 'Confidence Band (Lower)',
+                            data: chartData.forecast.confidenceLower,
+                            borderColor: 'rgba(37, 99, 235, 0.3)',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: '1', // Fill to the next dataset (Confidence Band Upper)
+                            pointRadius: 0,
+                            pointHoverRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: false,
+                            text: 'Demand Forecast'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        legend: {
+                            position: 'bottom',
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Days'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Units'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize Charts on window load
+        window.onload = initializeCharts;
+
+        // Function to apply filters (placeholder for actual data filtering)
+        function applyFilters() {
+            const region = document.getElementById('filter-region').value;
+            const store = document.getElementById('filter-store').value;
+            const fc = document.getElementById('filter-fc').value;
+            const sku = document.getElementById('filter-sku').value;
+
+            console.log(Applying filters: Region=${region}, Store=${store}, FC=${fc}, SKU=${sku});
+
+            // TODO: In a real application, this would trigger an API call
+            // to fetch filtered data and update all charts and the SKU table.
+            // For now, we'll just update the filtered KPIs with dummy data.
+            document.getElementById('filtered-mape').textContent = (Math.random() * (90 - 85) + 85).toFixed(1) + '%';
+            document.getElementById('filtered-stock-out').textContent = (Math.random() * (5 - 1) + 1).toFixed(1) + '%';
+
+            // You would also re-render charts and filter the SKU table based on these selections
+            // filterTable(); // Re-filter table if needed
+        }
+
+        // Function to filter SKU table
+        function filterTable() {
+            const input = document.getElementById('sku-search');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('sku-table');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) { // Start from 1 to skip header row
+                let tdSku = tr[i].getElementsByTagName('td')[0]; // SKU column
+                let tdProductName = tr[i].getElementsByTagName('td')[1]; // Product Name column
+                if (tdSku || tdProductName) {
+                    const skuText = tdSku ? tdSku.textContent || tdSku.innerText : '';
+                    const productNameText = tdProductName ? tdProductName.textContent || tdProductName.innerText : '';
+                    if (skuText.toUpperCase().indexOf(filter) > -1 || productNameText.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = '';
+                    } else {
+                        tr[i].style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        // Function to sort SKU table
+        let sortDirection = {}; // To keep track of sort direction for each column
+
+        function sortTable(n) {
+            const table = document.getElementById('sku-table');
+            let rows, switching, i, x, y, shouldSwitch;
+            switching = true;
+            /* Set the sorting direction to ascending:*/
+            sortDirection[n] = sortDirection[n] === 'asc' ? 'desc' : 'asc';
+
+            /* Make a loop that will continue until
+            no switching has been done: */
+            while (switching) {
+                // Start by saying: no switching is done:
+                switching = false;
+                rows = table.rows;
+                /* Loop through all table rows (except the first, which contains table headers): */
+                for (i = 1; i < (rows.length - 1); i++) {
+                    // Start by saying there should be no switching:
+                    shouldSwitch = false;
+                    /* Get the two elements you want to compare,
+                    one from current row and one from the next: */
+                    x = rows[i].getElementsByTagName('td')[n];
+                    y = rows[i + 1].getElementsByTagName('td')[n];
+
+                    let xContent = x.textContent || x.innerText;
+                    let yContent = y.textContent || y.innerText;
+
+                    // Handle numeric sorting for relevant columns
+                    if (n === 2 || (n >= 3 && n <= 7)) { // Current Stock, Forecasts, Coverage Days, Reorder Qty
+                        xContent = parseFloat(xContent.replace(/[^\d.-]/g, '')); // Remove non-numeric chars
+                        yContent = parseFloat(yContent.replace(/[^\d.-]/g, ''));
+                    }
+
+                    // Handle risk rating sorting (High, Medium, Low)
+                    if (n === 8) { // Risk Rating
+                        const riskOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+                        xContent = riskOrder[xContent.toUpperCase()];
+                        yContent = riskOrder[yContent.toUpperCase()];
+                    }
+
+                    /* Check if the two rows should switch place,
+                    based on the direction, asc or desc: */
+                    if (sortDirection[n] === 'asc') {
+                        if (xContent > yContent) {
+                            // If so, mark as a switch and break the loop:
+                            shouldSwitch = true;
+                            break;
+                        }
+                    } else { // desc
+                        if (xContent < yContent) {
+                            // If so, mark as a switch and break the loop:
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                }
+                if (shouldSwitch) {
+                    /* If a switch has been marked, make the switch
+                    and mark that a switch has been done: */
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                }
+            }
+        }
+
+        // Function to process CSV for prediction (client-side simulation)
+        function processCsvForPrediction() {
+            const fileInput = document.getElementById('csv-input');
+            const predictedSalesElement = document.getElementById('predicted-sales');
+
+            if (fileInput.files.length === 0) {
+                predictedSalesElement.textContent = "Please select a CSV file.";
+                predictedSalesElement.classList.remove('text-green-600');
+                predictedSalesElement.classList.add('text-red-600');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            predictedSalesElement.textContent = "Processing CSV and generating prediction...";
+            predictedSalesElement.classList.remove('text-red-600');
+            predictedSalesElement.classList.add('text-gray-600');
+
+            reader.onload = function(e) {
+                const csvData = e.target.result;
+                // --- Client-side simulation for demo purposes ---
+                // Parse the CSV data (simple parsing assuming "Month,Sales" format)
+                const lines = csvData.trim().split('\n');
+                let salesData = [];
+                for (let i = 1; i < lines.length; i++) { // Skip header
+                    const parts = lines[i].split(',');
+                    if (parts.length > 1 && !isNaN(parseFloat(parts[1]))) {
+                        salesData.push(parseFloat(parts[1]));
+                    }
+                }
+
+                if (salesData.length < 3) {
+                    predictedSalesElement.textContent = "CSV must contain at least 3 months of sales data for prediction.";
+                    predictedSalesElement.classList.remove('text-green-600', 'text-gray-600');
+                    predictedSalesElement.classList.add('text-red-600');
+                    return;
+                }
+
+                // Use the last 3 months for prediction (simple moving average)
+                const last3Months = salesData.slice(-3);
+                const prediction = last3Months.reduce((sum, val) => sum + val, 0) / last3Months.length;
+
+                predictedSalesElement.textContent = prediction.toFixed(0) + ' Units';
+                predictedSalesElement.classList.remove('text-gray-600', 'text-red-600');
+                predictedSalesElement.classList.add('text-green-600');
+
+                // Optionally update the chart with this new prediction
+                const newLabel = 'Day 95 (CSV Predicted)';
+                const newForecastValue = prediction;
+
+                if (demandForecastChartInstance) {
+                    const existingIndex = chartData.forecast.labels.indexOf(newLabel);
+                    if (existingIndex === -1) {
+                        chartData.forecast.labels.push(newLabel);
+                        chartData.forecast.forecast.push(newForecastValue);
+                        chartData.forecast.confidenceUpper.push(newForecastValue + 10); // Simple band for demo
+                        chartData.forecast.confidenceLower.push(newForecastValue - 10); // Simple band for demo
+                        chartData.forecast.actual.push(null);
+                    } else {
+                        chartData.forecast.forecast[existingIndex] = newForecastValue;
+                        chartData.forecast.confidenceUpper[existingIndex] = newForecastValue + 10;
+                        chartData.forecast.confidenceLower[existingIndex] = newForecastValue - 10;
+                    }
+                    demandForecastChartInstance.update();
+                }
+                // --- End of client-side simulation ---
+
+                // TODO: In a real application, you would send this csvData to your backend API.
+                // Example:
+                /*
+                fetch('/api/predict-from-csv', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/csv', // Or 'application/json' if you stringify it
+                    },
+                    body: csvData,
+                })
+                .then(response => response.json()) // Assuming backend returns JSON with prediction
+                .then(data => {
+                    predictedSalesElement.textContent = data.prediction.toFixed(0) + ' Units';
+                    predictedSalesElement.classList.remove('text-gray-600', 'text-red-600');
+                    predictedSalesElement.classList.add('text-green-600');
+                    // Update chartData.forecast and demandForecastChartInstance here with actual data
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    predictedSalesElement.textContent = "Error during prediction. Please try again.";
+                    predictedSalesElement.classList.remove('text-green-600', 'text-gray-600');
+                    predictedSalesElement.classList.add('text-red-600');
+                });
+                */
+            };
+
+            reader.onerror = function() {
+                predictedSalesElement.textContent = "Error reading file. Please try again.";
+                predictedSalesElement.classList.remove('text-green-600', 'text-gray-600');
+                predictedSalesElement.classList.add('text-red-600');
+            };
+
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html> 
